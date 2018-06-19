@@ -42,6 +42,7 @@ def web_request_datagov(dataset_name):
 
 
 def get_title_desc_publisher(datasource, dataset_name, sub_dataset_path):
+    details = []
     if "datagov" in datasource:
         try:
             bsObj = web_request_datagov(dataset_name)
@@ -57,18 +58,29 @@ def get_title_desc_publisher(datasource, dataset_name, sub_dataset_path):
             publisher_name = bsObj.find("div", {"role": "main"}).find("li", {"class": "home"})\
                                   .findNextSiblings()[2].text
 
-            return scrapped_title.encode("utf-8"), scrapped_desc.encode("utf-8"), organization_name,\
-                    publisher_name.replace("&nbsp;", "")
+            details.append(scrapped_title.encode("utf-8"))
+            details.append(scrapped_desc.encode("utf-8"))
+            details.append(organization_name)
+            details.append(publisher_name.replace("&nbsp;", ""))
+
+            # return scrapped_title.encode("utf-8"), scrapped_desc.encode("utf-8"), organization_name,\
+                    # publisher_name.replace("&nbsp;", "")
         except Exception:
-            return re.sub('[^A-Za-z0-9]+', ' ', dataset_name).encode("utf-8")
+            raise
+            # return re.sub('[^A-Za-z0-9]+', ' ', dataset_name).encode("utf-8")
 
     elif "quandl" in datasource:
         with open(os.path.join(sub_dataset_path, 'info.info')) as dataset_info:
             dataset_metadata = dataset_info.readlines()
-            return dataset_metadata[0], dataset_metadata[2], "", dataset_name.split('_')[0]
 
-    else:
-        return "", "", "", ""
+            details.append(dataset_metadata[0])
+            details.append(dataset_metadata[2])
+            details.append("")
+            details.append(dataset_name.split('_')[0])
+
+            # return dataset_metadata[0], dataset_metadata[2], "", dataset_name.split('_')[0]
+
+    return details
 
 
 def main():
@@ -97,13 +109,12 @@ def main():
                                 df.loc[i, 'dataset_name_in_yaml'] = "cortex/dataset_" + dataset_name
                                 df.loc[i, 'industry'] = get_industry(datasource, dataset_name)
                                 
-                                title, description, organization, publisher = get_title_desc_publisher(datasource,
-                                                                                                       super_dataset,
-                                                                                                       sub_dataset_path)
-                                df.loc[i, 'title_scrapped'] = title
-                                df.loc[i, 'description_scrapped'] =  description
-                                df.loc[i, 'organization_name'] = organization
-                                df.loc[i, 'publisher_name'] = publisher
+                                details = get_title_desc_publisher(datasource, super_dataset, sub_dataset_path)
+                                if len(details) > 0:
+                                    df.loc[i, 'title_scrapped'] = details[0]
+                                    df.loc[i, 'description_scrapped'] =  details[1]
+                                    df.loc[i, 'organization_name'] = details[2]
+                                    df.loc[i, 'publisher_name'] = details[3]
                                 if 'datagov' in datasource:
                                     df.loc[i, 'url'] = "https://catalog.data.gov/dataset/" + super_dataset
 
